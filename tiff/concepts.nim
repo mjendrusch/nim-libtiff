@@ -190,3 +190,7 @@ iterator items*[T](im: TypedView[T]): T =
 iterator items*[T](im: TypedImage[T]): Scalar[T] =
   for idx in 0 ..< im.total:
     yield im.vecAt(idx)
+
+when isMainModule:
+  static:
+    echo NimImage is Image
