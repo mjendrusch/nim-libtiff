@@ -1,0 +1,2 @@
+include
+  tiffdefs, tiffio, tiffconf

@@ -1,4 +1,4 @@
-import base/tiffBase, typetraits, tables, macros, imageConcepts
+import tiff.base.tiffbase, typetraits, tables, macros, tiff.imageConcepts
 
 type
   TiffFile* = ptr Tiff ## A pointer to a Tiff file handle.
