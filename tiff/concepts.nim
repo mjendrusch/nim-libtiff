@@ -84,7 +84,7 @@ type
     v.originX is int
     v.originY is int
     v.parent is TypedImage[T]
-  TypedImage* {. explain .} [T] = concept img of MinimalImage
+  TypedImage* [T] = concept img of MinimalImage
     var
       x, y: int
     img{x} is TypedView[T]
@@ -110,12 +110,17 @@ type
     originX, originY: int
     width, height: int
     parent: NimImage
+  TypedChannelView*[T] = object
+    index: int
+    originX, originY: int
+    width, height: int
+    parent: TypedNimImage[T]
 
 proc dispose*(ni: NimImage) =
   for channel in ni.channels:
     dealloc channel
 
-template toBytes*(bw: BitWidthType): int =
+proc toBytes*(bw: BitWidthType): int =
   case bw
   of bw8: 1
   of bw16: 2
@@ -136,32 +141,43 @@ proc `{}`*(ni: NimImage; idx: int): NimChannelView =
                  width: ni.width, height: ni.height,
                  parent: ni)
 
-template stride*(ni: NimChannelView): int =
+proc `{}`*[T](ni: TypedNimImage[T]; idx: int): TypedChannelView[T] =
+  TypedChannelView[T](index: idx, originX: 0, originY: 0,
+                 width: ni.width, height: ni.height,
+                 parent: ni)
+
+proc stride*(ni: NimChannelView): int =
   ni.parent.stride
 
-proc pointer*[T](ni: NimChannelView; x: int): ptr T =
+proc pointer*[T](ni: TypedChannelView[T]; x: int): ptr T =
   assert(x < ni.width * ni.height)
   let origin = cast[uint](ni.parent.channels[ni.index]) +
                ni.originX.uint * ni.parent.width.uint + ni.originY.uint
   let translation = (x div ni.width) * ni.parent.width + x mod ni.width
   cast[ptr T](origin + uint(translation * sizeOf(T)))
 
-proc pointer*[T](ni: NimChannelView; x, y: int): ptr T =
+proc pointer*[T](ni: TypedChannelView[T]; x, y: int): ptr T =
   assert(x < ni.width)
   assert(y < ni.height)
   pointer[T](ni, x * ni.width + y)
 
-proc at*[T](ni: NimChannelView; x: int): T =
-  result = pointer[T](ni, x)[]
+proc at*[T](ni: TypedChannelView[T]; x: int): var T =
+  result = pointer(ni, x)[]
 
-proc at*[T](ni: NimChannelView; x, y: int): T =
-  result = pointer[T](ni, x, y)[]
+proc at*[T](ni: TypedChannelView[T]; x, y: int): var T =
+  result = pointer(ni, x, y)[]
 
-template pixelWidth*(ni: NimImage): int =
+proc to*[T](ni: NimImage, typ: typedesc[T]): TypedNimImage[T] =
+  cast[TypedNimImage[T]](ni)
+
+proc to*[T, U](ni: TypedNimImage[U], typ: typedesc[T]): TypedNimImage[T] =
+  cast[TypedNimImage[T]](ni)
+
+proc pixelWidth*(ni: NimImage): int =
   ni.channels.len
 
-template total*(ni: NimImage): int =
-  ni.width * ni.height * ni.total
+proc total*(ni: NimImage): int =
+  ni.width * ni.height
 
 proc vecAt*[T](ni: NimImage; x: int): seq[T] =
   result = newSeq[T](ni.pixelWidth)

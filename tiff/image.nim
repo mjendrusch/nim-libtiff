@@ -53,21 +53,21 @@ proc newRgbaImage*(width, height: int): RgbaImage =
   result.height = height
   result.data = cast[Buffer](tiffMalloc(4 * width * height))
 
-template `[]`*(x: RgbaScalar; index: int): uint8 =
+proc `[]`*(x: RgbaScalar; index: int): uint8 =
   ((x.uint shr index * 8) and 0xFF'u32).uint8
-template len*(x: RgbaScalar): int = 4
+proc len*(x: RgbaScalar): int = 4
 
 proc `{}`*(ri: RgbaImage; x: range[0..3]): MonochromeView =
   MonochromeView(index: x, width: ri.width, height: ri.height, parent: ri)
 proc `{}`*[T](ri: RgbaTyped[T]; x: range[0..3]): MonochromeTyped[T] =
   MonochromeTyped[T](index: x, width: ri.width, height: ri.height, parent: ri)
-template to*[T](ri: RgbaImage; typ: typedesc[T]): RgbaTyped[T] =
-  cast[RgbaTyped[typ]](ri)
-template to*[T, U](ri: RgbaTyped[U]; typ: typedesc[T]): RgbaTyped[T] =
-  cast[RgbaTyped[typ]](ri)
-template to*[T](mv: MonochromeView; typ: typedesc[T]): MonochromeTyped[T] =
+proc to*[T](ri: RgbaImage; typ: typedesc[T]): RgbaTyped[T] =
+  cast[RgbaTyped[T]](ri)
+proc to*[T, U](ri: RgbaTyped[U]; typ: typedesc[T]): RgbaTyped[T] =
+  cast[RgbaTyped[T]](ri)
+proc to*[T](mv: MonochromeView; typ: typedesc[T]): MonochromeTyped[T] =
   cast[MonochromeTyped[T]](mv)
-template to*[T, U](mv: MonochromeTyped[U]; typ: typedesc[T]): MonochromeTyped[T] =
+proc to*[T, U](mv: MonochromeTyped[U]; typ: typedesc[T]): MonochromeTyped[T] =
   cast[MonochromeTyped[T]](mv)
 proc vecAt*[T](ri: RgbaTyped[T]; x: int): RgbaScalar =
   assert(x < ri.width * ri.height)
@@ -76,17 +76,17 @@ proc vecAt*[T](ri: RgbaTyped[T]; x, y: int): RgbaScalar =
   assert(x < ri.width)
   assert(y < ri.height)
   cast[ptr T](cast[uint](ri.data) + uint(4 * (x * ri.height + y)))[].RgbaScalar
-template bitWidth*(ri: RgbaImage | RgbaTyped | MonochromeTyped | MonochromeView): BitWidthType = bw8
-template pixelWidth*(ri: RgbaImage): int = 4
-template pixelWidth*(ri: RgbaTyped): int = 4
-template pixelWidth*(ri: MonochromeTyped): int = 1
-template pixelWidth*(ri: MonochromeView): int = 1
-template stride*(ri: RgbaImage | RgbaTyped): int = ri.width
-template stride*(ri: MonochromeTyped): int = ri.parent.stride
-template stride*(ri: MonochromeView): int = ri.parent.stride
-template total*(ri: RgbaImage | RgbaTyped): int = ri.width * ri.height
-template total*(ri: MonochromeTyped): int = ri.width * ri.height
-template total*(ri: MonochromeView): int = ri.width * ri.height
+proc bitWidth*(ri: RgbaImage | RgbaTyped | MonochromeTyped | MonochromeView): BitWidthType = bw8
+proc pixelWidth*(ri: RgbaImage): int = 4
+proc pixelWidth*(ri: RgbaTyped): int = 4
+proc pixelWidth*(ri: MonochromeTyped): int = 1
+proc pixelWidth*(ri: MonochromeView): int = 1
+proc stride*(ri: RgbaImage | RgbaTyped): int = ri.width
+proc stride*(ri: MonochromeTyped): int = ri.parent.stride
+proc stride*(ri: MonochromeView): int = ri.parent.stride
+proc total*(ri: RgbaImage | RgbaTyped): int = ri.width * ri.height
+proc total*(ri: MonochromeTyped): int = ri.width * ri.height
+proc total*(ri: MonochromeView): int = ri.width * ri.height
 
 proc pointer*[T](ni: MonochromeTyped[T]; x: int): ptr T =
   assert(x < ni.width * ni.height)
@@ -120,6 +120,20 @@ proc col*[T](v: MonochromeTyped[T]; x: int): MonochromeTyped[T] =
                      originX: 0, originY: x,
                      width: 1, height: v.height,
                      parent: v.parent)
+
+proc normalize*[T](v: MonochromeTyped[T]; n: auto; lo, hi: auto) =
+  var
+    max = T(0)
+    min = T(255)
+  for idx in 0 ..< v.total:
+    let current = v.at(idx)
+    if current > max:
+      max = current
+    if current < min:
+      min = current
+  var nView = n.to(float32){0}
+  for idx in 0 ..< v.total:
+    nView.at(idx) = (float32(v.at(idx)) - float32(min) + float32(lo)) / (float32 max) * (float32 hi)
 
 proc readTiff*(path: string): DTiffImage =
   discard
