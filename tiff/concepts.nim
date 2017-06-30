@@ -1,6 +1,11 @@
 import typetraits
 
 type
+  ## TODO:
+  RandomAccessIterable[T] = concept it
+    it[int] is T
+    it.len is int
+
   BitWidthType* = enum
     bw8, bw16, bw32
   ## Concepts
@@ -41,7 +46,9 @@ type
       y: int
     img is MinimalImage
     img.at(x) is T
+    img[x] is T
     img.at(x, y) is T
+    img[x, y] is T
     img.pointer(x) is ptr T
     img.pointer(x, y) is ptr T
   TypedImageLike* [T] = concept img
@@ -53,7 +60,9 @@ type
     img.row(x) is TypedImageLikeAux[T]  ## Row access to the image
     img.col(x) is TypedImageLikeAux[T]  ## Column access to the image
     img.at(x) is T                      ## Linear access to the image
+    img[x] is T
     img.at(x, y) is T                   ## Pixel access to the image
+    img[x, y] is T
     img.pointer(x) is ptr T             ## Access to pointers on the image
     img.pointer(x, y) is ptr T          ## Access to pointers on the image
                                         ## TODO: Make this return `Derefable`
@@ -69,7 +78,7 @@ type
     v.originX is int
     v.originY is int
     v.parent is MinimalImage
-  Image*  = concept img of MinimalImage
+  Image* {. explain .} = concept img of MinimalImage
     var
       x: int
       y: int
@@ -89,7 +98,9 @@ type
       x, y: int
     img{x} is TypedView[T]
     img.vecAt(x) is Scalar[T]
+    img[x] is Scalar[T]
     img.vecAt(x, y) is Scalar[T]
+    img[x, y] is Scalar[T]
   Scalar*  [T] = concept sc
     ## Concept describing a pixel datatype with a number of Samples of type T.
     var x: int
@@ -167,6 +178,9 @@ proc at*[T](ni: TypedChannelView[T]; x: int): var T =
 proc at*[T](ni: TypedChannelView[T]; x, y: int): var T =
   result = pointer(ni, x, y)[]
 
+template `[]`*[T](ni: TypedChannelView[T]; x: int): var T = ni.at(x)
+template `[]`*[T](ni: TypedChannelView[T]; x, y: int): var T = ni.at(x, y)
+
 proc to*[T](ni: NimImage, typ: typedesc[T]): TypedNimImage[T] =
   cast[TypedNimImage[T]](ni)
 
@@ -176,20 +190,30 @@ proc to*[T, U](ni: TypedNimImage[U], typ: typedesc[T]): TypedNimImage[T] =
 proc pixelWidth*(ni: NimImage): int =
   ni.channels.len
 
-proc total*(ni: NimImage): int =
-  ni.width * ni.height
+proc pixelWidth*(ni: TypedNimImage): int =
+  ni.channels.len
 
-proc vecAt*[T](ni: NimImage; x: int): seq[T] =
+proc total*(ni: NimImage | TypedNimImage): int =
+  ni.width * ni.height
+proc total*(ni: TypedChannelView): int =
+  ni.width * ni.height
+template len*(ni: NimImage | TypedNimImage | TypedChannelView): int =
+  ni.total
+
+proc vecAt*[T](ni: TypedNimImage[T]; x: int): seq[T] =
   result = newSeq[T](ni.pixelWidth)
   for idx in 0 ..< ni.pixelWidth:
     result[idx] = at[T](ni{idx}, x)
 
-proc vecAt*[T](ni: NimImage; x, y: int): seq[T] =
+proc vecAt*[T](ni: TypedNimImage[T]; x, y: int): seq[T] =
   assert(x < ni.width)
   assert(y < ni.height)
   result = newSeq[T](ni.pixelWidth)
   for idx in 0 ..< ni.pixelWidth:
     result[idx] = at[T](ni{idx}, x, y)
+
+template `[]`*[T](ni: TypedNimImage[T]; x: int): seq[T] = ni.vecAt(x)
+template `[]`*[T](ni: TypedNimImage[T]; x, y: int): seq[T] = ni.vecAt(x, y)
 
 iterator channels*(im: Image): View =
   for idx in 0 ..< im.pixelWidth:
@@ -208,5 +232,8 @@ iterator items*[T](im: TypedImage[T]): Scalar[T] =
     yield im.vecAt(idx)
 
 when isMainModule:
+  var img = newNimImage(1, 1, 1, bw32)
   static:
-    echo NimImage is Image
+    echo img is MinimalImage
+    echo img.to(float) is TypedImage[float]
+    echo img.to(float){0} is RandomAccessIterable[float]
