@@ -7,7 +7,7 @@ type
     it.len is int
 
   BitWidthType* = enum
-    bw8, bw16, bw32
+    bw8, bw16, bw32, bwInvalid
   ## Concepts
   Address*[T] = ptr T or ref T
   PtrLike*[T] = concept p
@@ -38,7 +38,7 @@ type
     img is MinimalImage               ## The image should satisfy MinimalImage
     img.row(x) is View                ## Row access to the image
     img.col(x) is View                ## Column access to the image
-    img.to(Typ) is TypedImageLike[T]  ## Zero-copy conversion to a typed image
+    img.to(Typ) is TypedImageLike[Typ]  ## Zero-copy conversion to a typed image
   TypedImageLikeAux* [T] = concept img
     ## Helper Concept to avoid infinite recursion.
     var
@@ -57,8 +57,8 @@ type
       x: int
       y: int
     img is MinimalImage                 ## The image should satisfy MinimalImage
-    img.row(x) is TypedImageLikeAux[T]  ## Row access to the image
-    img.col(x) is TypedImageLikeAux[T]  ## Column access to the image
+    # img.row(x) is TypedImageLikeAux[T]  ## Row access to the image
+    # img.col(x) is TypedImageLikeAux[T]  ## Column access to the image
     img.at(x) is T                      ## Linear access to the image
     img[x] is T
     img.at(x, y) is T                   ## Pixel access to the image
@@ -72,9 +72,10 @@ type
     v.originX is int          ## x-Origin of the View within the parent image
     v.originY is int          ## y-origin of the View within the parent image
     v.parent is MinimalImage  ## reference to the parent image
-  TypedView*  [T] = concept v of TypedImageLike[T]
+  TypedView*  [T] = concept v
     ## Concept comprising the interface exposed by a statically typed View into
     ## an image.
+    v is TypedImageLike[T]
     v.originX is int
     v.originY is int
     v.parent is MinimalImage
@@ -85,14 +86,14 @@ type
     type T = distinct auto
     img.to(T) is TypedImage[T]
   ImageView*  = concept iv of Image
-    v.originX is int
-    v.originY is int
-    v.parent is Image
+    iv.originX is int
+    iv.originY is int
+    iv.parent is Image
   TypedImageView*  [T] = concept iv
     iv is TypedImage[T]
-    v.originX is int
-    v.originY is int
-    v.parent is TypedImage[T]
+    iv.originX is int
+    iv.originY is int
+    iv.parent is TypedImage[T]
   TypedImage* [T] = concept img of MinimalImage
     var
       x, y: int
@@ -108,24 +109,24 @@ type
     sc.len is int
 
   NimImage* = ref object
-    width*, height*, originX*, originY*, stride: int
-    bitWidth: BitWidthType
+    width*, height*, originX*, originY*, stride*: int
+    bitWidth*: BitWidthType
     channels*: seq[pointer]
   TypedNimImage*[T] = ref object
-    width*, height*, originX*, originY*, stride: int
-    bitWidth: BitWidthType
+    width*, height*, originX*, originY*, stride*: int
+    bitWidth*: BitWidthType
     channels*: seq[ptr T]
   NimImageView* = distinct NimImage
   NimChannelView* = object
-    index: int
-    originX, originY: int
-    width, height: int
-    parent: NimImage
+    index*: int
+    originX*, originY*: int
+    width*, height*: int
+    parent*: NimImage
   TypedChannelView*[T] = object
-    index: int
-    originX, originY: int
-    width, height: int
-    parent: TypedNimImage[T]
+    index*: int
+    originX*, originY*: int
+    width*, height*: int
+    parent*: TypedNimImage[T]
 
 proc dispose*(ni: NimImage) =
   for channel in ni.channels:
@@ -136,6 +137,7 @@ proc toBytes*(bw: BitWidthType): int =
   of bw8: 1
   of bw16: 2
   of bw32: 4
+  of bwInvalid: 0
 
 proc newNimImage*(width, height, pixelWidth: int; bitWidth: BitWidthType): NimImage =
   new result, dispose
@@ -183,15 +185,21 @@ template `[]`*[T](ni: TypedChannelView[T]; x, y: int): var T = ni.at(x, y)
 
 proc to*[T](ni: NimImage, typ: typedesc[T]): TypedNimImage[T] =
   cast[TypedNimImage[T]](ni)
-
 proc to*[T, U](ni: TypedNimImage[U], typ: typedesc[T]): TypedNimImage[T] =
   cast[TypedNimImage[T]](ni)
+proc to*[T](ni: NimChannelView, typ: typedesc[T]): TypedChannelView[T] =
+  cast[TypedChannelView[T]](ni)
+proc to*[T, U](ni: TypedChannelView[U], typ: typedesc[T]): TypedChannelView[T] =
+  cast[TypedChannelView[T]](ni)
 
-proc pixelWidth*(ni: NimImage): int =
-  ni.channels.len
-
-proc pixelWidth*(ni: TypedNimImage): int =
-  ni.channels.len
+proc pixelWidth*(ni: NimImage): int = ni.channels.len
+proc pixelWidth*(ni: TypedNimImage): int = ni.channels.len
+template pixelWidth*(ni: NimChannelView): int = 1
+template pixelWidth*(ni: TypedChannelView): int = 1
+template bitWidth*(ni: NimChannelView): auto = ni.parent.bitWidth
+template bitWidth*(ni: TypedChannelView): auto = ni.parent.bitWidth
+template stride*(ni: NimChannelView): auto = ni.parent.stride
+template stride*(ni: TypedChannelView): auto = ni.parent.stride
 
 proc total*(ni: NimImage | TypedNimImage): int =
   ni.width * ni.height

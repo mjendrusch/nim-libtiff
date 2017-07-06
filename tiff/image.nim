@@ -1,4 +1,4 @@
-import tiff.hli
+import tiff.hli, typetraits
 
 type
   TiffImage*[BitWidth: static[BitWidthType]] = ref object
@@ -99,7 +99,9 @@ proc pointer*[T](v: MonochromeTyped[T]; x, y: int): ptr T =
   assert(y < v.parent.height)
   v.pointer(x * v.parent.width + y)
 proc at*[T](v: MonochromeTyped[T]; x: int): T = v.pointer(x)[]
+proc `[]`*[T](v: MonochromeTyped[T]; x: int): T = v.pointer(x)[]
 proc at*[T](v: MonochromeTyped[T]; x, y: int): T = v.pointer(x, y)[]
+proc `[]`*[T](v: MonochromeTyped[T]; x, y: int): T = v.pointer(x, y)[]
 proc row*(v: MonochromeView; x: int): MonochromeView =
   MonochromeView(index: v.index,
                  originX: x, originY: 0,
@@ -121,22 +123,104 @@ proc col*[T](v: MonochromeTyped[T]; x: int): MonochromeTyped[T] =
                      width: 1, height: v.height,
                      parent: v.parent)
 
-proc normalize*[T](v: MonochromeTyped[T]; n: auto; lo, hi: auto) =
+proc normalize*[T](v: TypedView[T]; n: auto; lo, hi: auto) =
+  type ElemType = v[0].type
   var
-    max = T(0)
-    min = T(255)
+    max = ElemType(0)
+    min = ElemType(255)
   for idx in 0 ..< v.total:
     let current = v.at(idx)
     if current > max:
       max = current
     if current < min:
       min = current
+  var delta = max - min
   var nView = n.to(float32){0}
-  for idx in 0 ..< v.total:
-    nView.at(idx) = (float32(v.at(idx)) - float32(min) + float32(lo)) / (float32 max) * (float32 hi)
+  if delta != 0:
+    for idx in 0 ..< v.total:
+      nView.at(idx) =
+        (float32(v.at(idx)) - float32(min)) / float32(delta) *
+          (float32(hi) - float32(lo)
+        ) + (float32 lo)
+  else:
+    for idx in 0 ..< v.total:
+      nView.at(idx) = 0.0'f32
 
-proc readTiff*(path: string): DTiffImage =
-  discard
+proc readTiff*(path: string): NimImage =
+  # Currently scanline only
+  let
+    tiff = openTiff(path)
+    planarConfig = tiff{PlanarConfig}
+    width = tiff{ImageWidth}
+    height = tiff{ImageLength}
+    channels = tiff{SamplesPerPixel}
+    bitNumber = tiff{BitsPerSample}
+    byteNumber = bitNumber div 8
+    scanlineSize = tiff.scanlineSize
+    offset = byteNumber * channels
+    bitWidth = case byteNumber
+      of 1:
+        bw8
+      of 2:
+        bw16
+      of 4:
+        bw32
+      else:
+        bwInvalid
+  result = newNimImage(width.int, height.int, channels.int, bitWidth)
+  if planarConfig == PlanarConfigContig:
+    var buf = newLineBuffer(int(scanlineSize div byteNumber), bitWidth)# tiff.readScanline(row, bitWidth, 0.Sample)
+    for row in 0 ..< height:
+      discard tiff.tiffReadScanline(buf.data, uint32 row, 0.Sample)
+      for chan in 0 ..< channels:
+        for col in 0 ..< scanlineSize div offset:
+          let
+            bufferIndex = col * byteNumber * channels + chan * byteNumber
+            imageIndex = (uint(row * width) + col) * byteNumber
+          copyMem(
+            cast[pointer](cast[int](result.channels[int chan]) + int(imageIndex)),
+            cast[pointer](cast[int](buf.data) + int bufferIndex),
+            byteNumber)
+  elif planarConfig == PlanarConfigSeparate:
+    for chan in 0 ..< channels:
+      for row in 0 ..< height:
+        let
+          buf = tiff.readScanline(uint row, bitWidth, chan.Sample)
+        let
+          index = (row * width) * byteNumber
+        copyMem(
+          cast[pointer](cast[int](result.channels[int chan]) + int(index)),
+          cast[pointer](buf.data), scanlineSize)
+  else:
+    echo "ERROR" # TODO: raise
+
+proc toAscii*(im: NimImage): string =
+  proc sign(x: uint16): char =
+    if x < 1000:
+      if x < 100: ' '
+      elif x < 200: '.'
+      elif x < 300: ':'
+      elif x < 400: ';'
+      elif x < 600: '+'
+      elif x < 800: '&'
+      else: '#'
+    else:
+      if x < 2000: ' '
+      elif x < 4000: '.'
+      elif x < 5000: ':'
+      elif x < 8000: ';'
+      elif x < 10000: '+'
+      elif x < 12000: '&'
+      else: '#'
+  let imU16 = im.to(uint16)
+  result = ""
+  for chan in 0 ..< im.channels.len:
+    result &= "Channel " & $chan & ":\n"
+    for idx in countdown(im.width - 1, 0):
+      var str = ""
+      for idy in countup(0, im.height - 1):
+        str &= sign(imU16{chan}.at(idx, idy))
+      result &= str & "\n"
 
 proc readRgba*(path: string): RgbaImage =
   let
@@ -173,7 +257,21 @@ proc toAscii*(im: RgbaImage): string =
       result &= str & "\n"
 
 when isMainModule:
+  var view: TypedChannelView[int]
+  static:
+    echo NimImage is MinimalImage
+    echo view is TypedView[int]
+    echo view is MinimalImage
+    echo view.at(0) is int
+    echo view[0] is int
+    echo view.at(0,0) is int
+    echo view[0, 0] is int
+    echo view.pointer(0) is ptr int
+    echo view.pointer(0 ,0) is ptr int
+    echo view.originX is int
+    echo view.originY is int
+    echo view.parent is MinimalImage
   let
-    path = "/home/mjendrusch/Desktop/BachelorKnop/colocalizationNumbers/testfiles/WellA02_Seq0001_serie_1_corr.tif.ome.tif_cell_10_14.tif"
-    res = path.readRgba
+    path = "/home/mjendrusch/Desktop/BachelorKnop/colocalizationNumbers/testfiles/WellH06_Seq0090_serie_1_corr.tif.ome.tif_cell_33_24.tif"
+    res = path.readTiff
   echo res.toAscii

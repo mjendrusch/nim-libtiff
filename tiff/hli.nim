@@ -30,7 +30,7 @@ type
     ## Smart buffer datatype.
     len*: int
     bitWidth*: BitWidthType
-    data: Buffer
+    data*: Buffer
   TileBuffer*[BitWidth: static[BitWidthType]] = ref object
     ## Smart buffer datatype.
     width*, height*: int
@@ -716,6 +716,14 @@ proc readScanline*[BitWidth: static[BitWidthType]](tf: TiffFile; row: uint;
     sample: Sample = 0): LineBuffer[BitWidth] =
   result = newLineBuffer[BitWidth](tf{imageWidth})
   tf.tiffReadScanline(result.data, row, sample)
+
+proc readScanline*(tf: TiffFile; row: uint; bitwidth: BitWidthType;
+    sample: Sample = 0): DLineBuffer =
+  new result
+  result.len = int tf{imageWidth}
+  result.data = cast[Buffer](tiffMalloc(int tf.scanlineSize))
+  result.bitWidth = bitWidth
+  discard tf.tiffReadScanline(result.data, uint32 row, sample)
 
 ## Writing procedures
 ## TODO
