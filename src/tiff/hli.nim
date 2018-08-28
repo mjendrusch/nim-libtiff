@@ -1,4 +1,4 @@
-import tiff.base.tiffbase, typetraits, tables, macros, tiff.concepts
+import base/tiffbase, typetraits, tables, macros, concepts
 
 export concepts, tiffbase
 
@@ -76,13 +76,13 @@ proc tagTypeDesc*(tag: NimNode): NimNode {. compileTime .} =
     elif tag.eqIdent"TIFFTAG_COLORMAP":
       newTree(nnkTupleTy,
               newTree(nnkIdentDefs,
-                      newIdentNode("x"),
-                      newIdentNode("y"),
-                      newIdentNode("z"),
+                      ident"x",
+                      ident"y",
+                      ident"z",
                       newTree(
                         nnkBracketExpr,
-                        newIdentNode("seq"),
-                        newIdentNode("uint16")
+                        ident"seq",
+                        ident"uint16"
                       ),
                       newEmptyNode()))
       # getType(tuple[x, y, z: seq[uint16]]) #          1<<BitsPerSample arrays
@@ -101,21 +101,21 @@ proc tagTypeDesc*(tag: NimNode): NimNode {. compileTime .} =
     elif tag.eqIdent"TIFFTAG_DOTRANGE":
       newTree(nnkTupleTy,
               newTree(nnkIdentDefs,
-                      newIdentNode("x"),
-                      newIdentNode("y"),
-                      newIdentNode("cstring"),
+                      ident("x"),
+                      ident("y"),
+                      ident("cstring"),
                       newEmptyNode()))
     elif tag.eqIdent"TIFFTAG_EXTRASAMPLES":
       newTree(nnkTupleTy,
               newTree(nnkIdentDefs,
-                      newIdentNode("x"),
-                      newIdentNode("uint16"),
+                      ident("x"),
+                      ident("uint16"),
                       newEmptyNode()),
               newTree(nnkIdentDefs,
-                      newIdentNode("y"),
+                      ident("y"),
                       newTree(nnkBracketExpr,
-                              newIdentNode("seq"),
-                              newIdentNode("uint16"))))
+                              ident("seq"),
+                              ident("uint16"))))
     elif tag.eqIdent"TIFFTAG_FAXMODE":
       int.getType              #G3/G4 compression pseudo-tag
     elif tag.eqIdent"TIFFTAG_FILLORDER":
@@ -127,9 +127,9 @@ proc tagTypeDesc*(tag: NimNode): NimNode {. compileTime .} =
     elif tag.eqIdent"TIFFTAG_HALFTONEHINTS":
       newTree(nnkTupleTy,
               newTree(nnkIdentDefs,
-                      newIdentNode("x"),
-                      newIdentNode("y"),
-                      newIdentNode("uint16"),
+                      ident("x"),
+                      ident("y"),
+                      ident("uint16"),
                       newEmptyNode()))
     elif tag.eqIdent"TIFFTAG_HOSTCOMPUTER":
       string.getType
@@ -148,12 +148,12 @@ proc tagTypeDesc*(tag: NimNode): NimNode {. compileTime .} =
     elif tag.eqIdent"TIFFTAG_JPEGTABLES":
       newTree(nnkTupleTy,
               newTree(nnkIdentDefs,
-                      newIdentNode("x"),
-                      newIdentNode("uint16"),
+                      ident("x"),
+                      ident("uint16"),
                       newEmptyNode()),
               newTree(nnkIdentDefs,
-                      newIdentNode("y"),
-                      newIdentNode("pointer"),
+                      ident("y"),
+                      ident("pointer"),
                       newEmptyNode()))
     elif tag.eqIdent"TIFFTAG_JPEGQUALITY":
       int.getType#              JPEG pseudo-tag
@@ -178,9 +178,9 @@ proc tagTypeDesc*(tag: NimNode): NimNode {. compileTime .} =
     elif tag.eqIdent"TIFFTAG_PAGENUMBER":
       newTree(nnkTupleTy,
               newTree(nnkIdentDefs,
-                      newIdentNode("x"),
-                      newIdentNode("y"),
-                      newIdentNode("uint16"),
+                      ident("x"),
+                      ident("y"),
+                      ident("uint16"),
                       newEmptyNode()))
     elif tag.eqIdent"TIFFTAG_PHOTOMETRIC":
       uint16.getType
@@ -190,13 +190,13 @@ proc tagTypeDesc*(tag: NimNode): NimNode {. compileTime .} =
       uint16.getType
     elif tag.eqIdent"TIFFTAG_PRIMARYCHROMATICITIES":
       newTree(nnkBracketExpr,
-              newIdentNode("array"),
+              ident("array"),
               newIntLitNode(6),
-              newIdentNode("cfloat"))           #6-entry array
+              ident("cfloat"))           #6-entry array
     elif tag.eqIdent"TIFFTAG_REFERENCEBLACKWHITE":
       newTree(nnkBracketExpr,
-              newIdentNode("seq"),
-              newIdentNode("cfloat"))
+              ident("seq"),
+              ident("cfloat"))
     elif tag.eqIdent"TIFFTAG_RESOLUTIONUNIT":
       uint16.getType
     elif tag.eqIdent"TIFFTAG_ROWSPERSTRIP":
@@ -213,29 +213,29 @@ proc tagTypeDesc*(tag: NimNode): NimNode {. compileTime .} =
       string.getType
     elif tag.eqIdent"TIFFTAG_STONITS":
       newTree(nnkBracketExpr,
-              newIdentNode("seq"),
-              newIdentNode("cdouble"))
+              ident("seq"),
+              ident("cdouble"))
     elif tag.eqIdent"TIFFTAG_STRIPBYTECOUNTS":
       newTree(nnkBracketExpr,
-              newIdentNode("seq"),
-              newIdentNode("uint32"))
+              ident("seq"),
+              ident("uint32"))
     elif tag.eqIdent"TIFFTAG_STRIPOFFSETS":
       newTree(nnkBracketExpr,
-              newIdentNode("seq"),
-              newIdentNode("uint32"))
+              ident("seq"),
+              ident("uint32"))
     elif tag.eqIdent"TIFFTAG_SUBFILETYPE":
       uint32.getType
     elif tag.eqIdent"TIFFTAG_SUBIFD":
       newTree(nnkTupleTy,
               newTree(nnkIdentDefs,
-                      newIdentNode("x"),
-                      newIdentNode("uint16"),
+                      ident("x"),
+                      ident("uint16"),
                       newEmptyNode()),
               newTree(nnkIdentDefs,
-                      newIdentNode("y"),
+                      ident("y"),
                       newTree(nnkBracketExpr,
-                              newIdentNode("seq"),
-                              newIdentNode("uint32")),
+                              ident("seq"),
+                              ident("uint32")),
                       newEmptyNode()))
     elif tag.eqIdent"TIFFTAG_TARGETPRINTER":
       string.getType
@@ -243,40 +243,40 @@ proc tagTypeDesc*(tag: NimNode): NimNode {. compileTime .} =
       uint16.getType
     elif tag.eqIdent"TIFFTAG_TILEBYTECOUNTS":
       newTree(nnkBracketExpr,
-              newIdentNode("seq"),
-              newIdentNode("uint32"))
+              ident("seq"),
+              ident("uint32"))
     elif tag.eqIdent"TIFFTAG_TILEDEPTH":
       uint32.getType
     elif tag.eqIdent"TIFFTAG_TILELENGTH":
       uint32.getType
     elif tag.eqIdent"TIFFTAG_TILEOFFSETS":
       newTree(nnkBracketExpr,
-              newIdentNode("seq"),
-              newIdentNode("uint32"))
+              ident("seq"),
+              ident("uint32"))
     elif tag.eqIdent"TIFFTAG_TILEWIDTH":
       uint32.getType
     elif tag.eqIdent"TIFFTAG_WHITEPOINT":
       newTree(nnkBracketExpr,
-              newIdentNode("array"),
+              ident("array"),
               newIntLitNode(2),
-              newIdentNode("cfloat"))           #2-entry array
+              ident("cfloat"))           #2-entry array
     elif tag.eqIdent"TIFFTAG_XPOSITION":
       cfloat.getType
     elif tag.eqIdent"TIFFTAG_XRESOLUTION":
       cfloat.getType
     elif tag.eqIdent"TIFFTAG_YCBCRCOEFFICIENTS":
       newTree(nnkBracketExpr,
-              newIdentNode("array"),
+              ident("array"),
               newIntLitNode(3),
-              newIdentNode("cfloat"))           #3-entry array
+              ident("cfloat"))           #3-entry array
     elif tag.eqIdent"TIFFTAG_YCBCRPOSITIONING":
       uint16.getType
     elif tag.eqIdent"TIFFTAG_YCBCRSUBSAMPLING":
       newTree(nnkTupleTy,
               newTree(nnkIdentDefs,
-                      newIdentNode("x"),
-                      newIdentNode("y"),
-                      newIdentNode("uint16"),
+                      ident("x"),
+                      ident("y"),
+                      ident("uint16"),
                       newEmptyNode()))
     elif tag.eqIdent"TIFFTAG_YPOSITION":
       cfloat.getType
@@ -285,12 +285,12 @@ proc tagTypeDesc*(tag: NimNode): NimNode {. compileTime .} =
     elif tag.eqIdent"TIFFTAG_ICCPROFILE":
       newTree(nnkTupleTy,
               newTree(nnkIdentDefs,
-                      newIdentNode("x"),
-                      newIdentNode("uint32"),
+                      ident("x"),
+                      ident("uint32"),
                       newEmptyNode()),
               newTree(nnkIdentDefs,
-                      newIdentNode("y"),
-                      newIdentNode("pointer"),
+                      ident("y"),
+                      ident("pointer"),
                       newEmptyNode()))
     else: ErrorTag.getType
 
@@ -300,13 +300,13 @@ proc tagType*(tag: NimNode): NimNode =
 macro `{}`*(tf: TiffFile; tag: untyped): auto =
   ## Tag-accessor for a TiffFile.
   var
-    tagIdent = newIdentNode("TiffTag" & $tag.ident)
+    tagIdent = ident("TiffTag" & $tag)
     tagTypeNode = tagIdent.tagType
   if tagTypeNode.len > 1 and tagTypeNode[0].eqIdent("typedesc"):
     tagTypeNode = tagTypeNode[1]
   if tagTypeNode.kind == nnkTupleTy:
     var
-      res = newIdentNode("res")
+      res = ident("res")
       call = (quote do:
         tiffGetField(`tf`, `tagIdent`))[0]
     for def in tagTypeNode.children:
@@ -320,7 +320,7 @@ macro `{}`*(tf: TiffFile; tag: untyped): auto =
         var modified = accessorModifier.copyNimTree
         modified[0] = newTree(nnkDotExpr, res, def[identIdx])
         call.add newTree(nnkCall,
-                         newIdentNode("addr"),
+                         ident("addr"),
                          modified)
     result = quote do:
       var `res`: `tagTypeNode`

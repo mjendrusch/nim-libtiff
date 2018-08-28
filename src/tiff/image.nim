@@ -1,4 +1,4 @@
-import tiff.hli, typetraits
+import hli, typetraits
 
 type
   TiffImage*[BitWidth: static[BitWidthType]] = ref object
@@ -151,12 +151,12 @@ proc readTiff*(path: string): NimImage =
   let
     tiff = openTiff(path)
     planarConfig = tiff{PlanarConfig}
-    width = tiff{ImageWidth}
-    height = tiff{ImageLength}
-    channels = tiff{SamplesPerPixel}
-    bitNumber = tiff{BitsPerSample}
+    width = tiff{ImageWidth}.int
+    height = tiff{ImageLength}.int
+    channels = tiff{SamplesPerPixel}.int
+    bitNumber = tiff{BitsPerSample}.int
     byteNumber = bitNumber div 8
-    scanlineSize = tiff.scanlineSize
+    scanlineSize = tiff.scanlineSize.int
     offset = byteNumber * channels
     bitWidth = case byteNumber
       of 1:
@@ -167,19 +167,19 @@ proc readTiff*(path: string): NimImage =
         bw32
       else:
         bwInvalid
-  result = newNimImage(width.int, height.int, channels.int, bitWidth)
+  result = newNimImage(width, height, channels, bitWidth)
   if planarConfig == PlanarConfigContig:
     var buf = newLineBuffer(int(scanlineSize div byteNumber), bitWidth)# tiff.readScanline(row, bitWidth, 0.Sample)
     for row in 0 ..< height:
       discard tiff.tiffReadScanline(buf.data, uint32 row, 0.Sample)
       for chan in 0 ..< channels:
-        for col in 0 ..< scanlineSize div offset:
+        for col in 0 ..< (scanlineSize div offset):
           let
             bufferIndex = col * byteNumber * channels + chan * byteNumber
-            imageIndex = (uint(row * width) + col) * byteNumber
+            imageIndex = (row * width + col) * byteNumber
           copyMem(
-            cast[pointer](cast[int](result.channels[int chan]) + int(imageIndex)),
-            cast[pointer](cast[int](buf.data) + int bufferIndex),
+            cast[pointer](cast[int](result.channels[chan]) + imageIndex),
+            cast[pointer](cast[int](buf.data) + bufferIndex),
             byteNumber)
   elif planarConfig == PlanarConfigSeparate:
     for chan in 0 ..< channels:
@@ -189,7 +189,7 @@ proc readTiff*(path: string): NimImage =
         let
           index = (row * width) * byteNumber
         copyMem(
-          cast[pointer](cast[int](result.channels[int chan]) + int(index)),
+          cast[pointer](cast[int](result.channels[chan]) + index),
           cast[pointer](buf.data), scanlineSize)
   else:
     echo "ERROR" # TODO: raise

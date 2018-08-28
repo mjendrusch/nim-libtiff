@@ -5,6 +5,7 @@ version        = "0.1.0"
 author         = "Michael Jendrusch"
 description    = "TIFF image format IO for nim."
 license        = "MIT"
+srcDir         = "src"
 skipDirs       = @["tests", "examples"]
 skipFiles      = @["tiff.html", "api.html"]
 
